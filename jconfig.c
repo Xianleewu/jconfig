@@ -9,22 +9,38 @@ cJSON *loadLocalConf(char *filename);
 cJSON *loadDefConfig(void);
 int saveConfig(cJSON *json, char *filename);
 
+int getConfigValue(char *root, char *name, cJSON *json);
+char *getConfigStr(char *root, char *name, cJSON *json);
+
+int setConfigValue(char *root, char *name, cJSON *json, int value);
+int setConfigStr(char *root, char *name, cJSON *json, char *str);
+
 int  main()
 {
 	cJSON *root = NULL;
-	
+	char *tmp = NULL;
+
 	printf("reading config info from %s \n", CONFIG_FILE_PATH);
-	
+
 	if((root = loadDefConfig()) == NULL)
 	{
 		printf("load default config failed");
 		return -1;
 	}
-	
+
 	saveConfig(root, "demo.json");
-	
+
+	setConfigValue("video", "width", root, 640);
+	setConfigValue(NULL, "motion", root, true);
+
+	tmp = getConfigStr("video", "format", root);
+
+	printf("\n video format:%s \n", tmp);
+
+	saveConfig(root, "demo.json");
+
 	cJSON_Delete(root);
-	
+
 	return 0;
 }
 
@@ -53,29 +69,6 @@ cJSON *loadLocalConf(char *filename)
 	free(data);
 
 	return json;
-}
-
-int saveConfig(cJSON *json, char *filename)
-{
-	FILE *f = NULL;
-	char *data = NULL;
-	unsigned int i = 0;
-
-	f = fopen(filename, "w+");
-
-	if(f == NULL)
-	{
-		printf("can not open file %s \n", filename);
-		return -1;
-	}
-
-	data = cJSON_Print(json);
-	printf("%s\n", data);
-	fprintf(f, "%s", data);
-	free(data);
-	fclose(f);
-
-	return 0;
 }
 
 cJSON *loadDefConfig(void)
@@ -145,4 +138,114 @@ cJSON *loadDefConfig(void)
 	}
 
 	return root;
+}
+
+int saveConfig(cJSON *json, char *filename)
+{
+	FILE *f = NULL;
+	char *data = NULL;
+	unsigned int i = 0;
+
+	f = fopen(filename, "w+");
+
+	if(f == NULL)
+	{
+		printf("can not open file %s \n", filename);
+		return -1;
+	}
+
+	data = cJSON_Print(json);
+	printf("%s\n", data);
+	fprintf(f, "%s", data);
+	free(data);
+	fclose(f);
+
+	return 0;
+}
+
+int getConfigValue(char *root, char *name, cJSON *json)
+{
+	cJSON *tmpJSON = json;
+
+	if(root != NULL)
+	{
+		tmpJSON = cJSON_GetObjectItem(json, root);
+	}
+
+	if(tmpJSON == NULL)
+	{
+		printf("no valuable json \n");
+
+		return -1;
+	}
+
+	return cJSON_GetObjectItem(tmpJSON, name)->valueint;
+}
+
+char *getConfigStr(char *root, char *name, cJSON *json)
+{
+	cJSON *tmpJSON = json;
+
+	if(root != NULL)
+	{
+		tmpJSON = cJSON_GetObjectItem(json, root);
+	}
+
+	if(tmpJSON == NULL)
+	{
+		printf("no valuable json \n");
+
+		return NULL;
+	}
+
+	return cJSON_GetObjectItem(tmpJSON, name)->valuestring;
+}
+
+int setConfigValue(char *root, char *name, cJSON *json, int value)
+{
+	cJSON *tmpJSON = json;
+
+	if(root != NULL)
+	{
+		tmpJSON = cJSON_GetObjectItem(json, root);
+	}
+
+	if(tmpJSON == NULL)
+	{
+		printf("no valuable json \n");
+
+		return -1;
+	}
+
+	if(cJSON_GetObjectItem(tmpJSON, name)->type == cJSON_Number)
+	{
+		cJSON_ReplaceItemInObject(tmpJSON, name, cJSON_CreateNumber(value));
+	}
+	else
+	{
+		cJSON_ReplaceItemInObject(tmpJSON, name, cJSON_CreateBool(value));
+	}
+
+	return 0;
+}
+
+int setConfigStr(char *root, char *name, cJSON *json, char *str)
+{
+	cJSON *tmpJSON = json;
+
+	if(root != NULL)
+	{
+		tmpJSON = cJSON_GetObjectItem(json, root);
+	}
+
+	if(tmpJSON == NULL)
+	{
+		printf("no valuable json \n");
+
+		return -1;
+	}
+
+	cJSON_ReplaceItemInObject(tmpJSON, name, cJSON_CreateString(str));
+
+	return 0;
 }
