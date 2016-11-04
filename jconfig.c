@@ -5,79 +5,89 @@
 #include "jconfig.h"
 
 configManager gConfigManager;
-void doit(char *text);
-void dofile(char *filename);
-int savefile(char *filename);
+cJSON *loadLocalConf(char *filename);
+cJSON *loadDefConfig(void);
+int saveConfig(cJSON *json, char *filename);
 
 int  main()
 {
-	printf("reading config info from %s \n", CONFIG_FILE_PATH);	
+	cJSON *root = NULL;
 	
-	dofile(CONFIG_FILE_PATH);
+	printf("reading config info from %s \n", CONFIG_FILE_PATH);
 	
-	savefile("demo.json");
+	if((root = loadDefConfig()) == NULL)
+	{
+		printf("load default config failed");
+		return -1;
+	}
+	
+	saveConfig(root, "demo.json");
+	
+	cJSON_Delete(root);
 	
 	return 0;
 }
 
-/* Parse text to JSON, then render back to text, and print! */
-void doit(char *text)
-{
-    char *out;
-    cJSON *json;
-
-    json = cJSON_Parse(text);
-    if (!json)
-    {
-        printf("Error before: [%s]\n", cJSON_GetErrorPtr());
-    }
-    else
-    {
-        out = cJSON_Print(json);
-        cJSON_Delete(json);
-        printf("%s\n", out);
-        free(out);
-    }
-}
-
-
 /* Read a file, parse, render back, etc. */
-void dofile(char *filename)
+cJSON *loadLocalConf(char *filename)
 {
-    FILE *f;
-    long len;
-    char *data;
+	FILE *f;
+	long len;
+	char *data;
+	cJSON *json;
 
-    /* open in read binary mode */
-    f = fopen(filename,"rb");
-    /* get the length */
-    fseek(f, 0, SEEK_END);
-    len = ftell(f);
-    fseek(f, 0, SEEK_SET);
+	/* open in read binary mode */
+	f = fopen(filename,"rb");
+	/* get the length */
+	fseek(f, 0, SEEK_END);
+	len = ftell(f);
+	fseek(f, 0, SEEK_SET);
 
-    data = (char*)malloc(len + 1);
+	data = (char*)malloc(len + 1);
 
-    fread(data, 1, len, f);
-    data[len] = '\0';
-    fclose(f);
+	fread(data, 1, len, f);
+	data[len] = '\0';
+	fclose(f);
 
-    doit(data);
-    free(data);
+	json = cJSON_Parse(data);
+	free(data);
+
+	return json;
 }
 
-int savefile(char *filename)
+int saveConfig(cJSON *json, char *filename)
 {
 	FILE *f = NULL;
 	char *data = NULL;
-	unsigned int i = 0;	
+	unsigned int i = 0;
 
-	cJSON *root,*fmt;
+	f = fopen(filename, "w+");
 
-	
-	//f = fopen(filename, "w+");
-	
+	if(f == NULL)
+	{
+		printf("can not open file %s \n", filename);
+		return -1;
+	}
+
+	data = cJSON_Print(json);
+	printf("%s\n", data);
+	fprintf(f, "%s", data);
+	free(data);
+	fclose(f);
+
+	return 0;
+}
+
+cJSON *loadDefConfig(void)
+{
+	unsigned int i = 0;
+
+	cJSON *root;
+
 	root  = cJSON_CreateObject();
-
+	/*
+	Read objects from config array until NULL
+	*/
 	while(itemList[i].root || itemList[i].name)
 	{
 		if(itemList[i].root && itemList[i].name)
@@ -88,20 +98,20 @@ int savefile(char *filename)
 			{
 				cJSON_AddItemToObject(root, itemList[i].root, tmpJSON = cJSON_CreateObject());
 			}
-			
+
 			if(!tmpJSON)
 			{
 				printf("Error: creat json object failed \n");
-				return -1;
+				return NULL;
 			}
-			
+
 			if(itemList[i].type == TYPE_STRING)
 			{
 				cJSON_AddStringToObject(tmpJSON, itemList[i].name, itemList[i].string);
 			}
 			else if(itemList[i].type == TYPE_NUMBER)
 			{
-    			cJSON_AddNumberToObject(tmpJSON, itemList[i].name, itemList[i].value);
+				cJSON_AddNumberToObject(tmpJSON, itemList[i].name, itemList[i].value);
 			}
 			else if(itemList[i].type == TYPE_BOOL)
 			{
@@ -115,30 +125,24 @@ int savefile(char *filename)
 		else
 		{
 			if(itemList[i].type == TYPE_STRING)
-            {
-                cJSON_AddStringToObject(root, itemList[i].name, itemList[i].string);
-            }
-            else if(itemList[i].type == TYPE_NUMBER)
-            {
-                cJSON_AddNumberToObject(root, itemList[i].name, itemList[i].value);
-            }
-            else if(itemList[i].type == TYPE_BOOL)
-            {
-                cJSON_AddBoolToObject(root, itemList[i].name, itemList[i].value);
-            }
-            else
-            {
-                printf("waring:Could not recognize value: %d \n",itemList[i].type);
-            }
+			{
+				cJSON_AddStringToObject(root, itemList[i].name, itemList[i].string);
+			}
+			else if(itemList[i].type == TYPE_NUMBER)
+			{
+				cJSON_AddNumberToObject(root, itemList[i].name, itemList[i].value);
+			}
+			else if(itemList[i].type == TYPE_BOOL)
+			{
+				cJSON_AddBoolToObject(root, itemList[i].name, itemList[i].value);
+			}
+			else
+			{
+				printf("waring:Could not recognize value type: %d \n",itemList[i].type);
+			}
 		}
-
 		i++;
 	}
-	
-	data = cJSON_Print(root);
-	cJSON_Delete(root);
-	printf("%s\n",data);
-	free(data);
 
-	return 0;
+	return root;
 }
