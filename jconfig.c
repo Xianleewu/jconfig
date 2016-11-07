@@ -4,7 +4,7 @@
 #include "cjson/cJSON.h"
 #include "jconfig.h"
 
-configManager gConfigManager;
+configManager *gConfigManager = NULL;
 cJSON *loadLocalConf(char *filename);
 cJSON *loadDefConfig(void);
 int saveConfig(cJSON *json, char *filename);
@@ -19,28 +19,18 @@ int  main()
 {
 	cJSON *root = NULL;
 	char *tmp = NULL;
-
-	printf("reading config info from %s \n", CONFIG_FILE_PATH);
-
-	if((root = loadDefConfig()) == NULL)
-	{
-		printf("load default config failed");
-		return -1;
-	}
-
-	saveConfig(root, "demo.json");
-
-	setConfigValue("video", "width", root, 640);
-	setConfigValue(NULL, "motion", root, true);
-
-	tmp = getConfigStr("video", "format", root);
-
-	printf("\n video format:%s \n", tmp);
-
-	saveConfig(root, "demo.json");
-
-	cJSON_Delete(root);
-
+	configManager *manager = NULL;
+	
+	manager = initConfigManager();
+	
+	printf("config manager init ok \n");
+	
+	saveConfigFiles(manager);
+	
+	printf("save config manager ok \n");
+	
+	delConfigManager(manager);
+	
 	return 0;
 }
 
@@ -248,4 +238,98 @@ int setConfigStr(char *root, char *name, cJSON *json, char *str)
 	cJSON_ReplaceItemInObject(tmpJSON, name, cJSON_CreateString(str));
 
 	return 0;
+}
+
+configManager *initConfigManager()
+{
+	configManager *manager;
+	
+	if(gConfigManager == NULL)
+	{
+		manager = (configManager*) malloc(sizeof(configManager));
+		
+		if(manager == NULL)
+		{
+			return NULL;
+		}
+		
+		if(access(CONFIG_FILE_PATH_BACK, F_OK) != -1)
+		{
+			manager->config = loadLocalConf(CONFIG_FILE_PATH_BACK);
+		}
+		else if(access(CONFIG_FILE_PATH, F_OK) != -1)
+		{
+			manager->config = loadLocalConf(CONFIG_FILE_PATH);
+		}
+		else
+		{
+			manager->config = loadDefConfig();
+		}
+		
+		gConfigManager = manager;
+	}
+
+	return gConfigManager;	
+}
+
+configManager *getConfigManager()
+{
+	return initConfigManager();
+}
+
+int delConfigManager(configManager *manager)
+{
+	if(manager == NULL)
+	{
+		return -1;
+	}
+	
+	if(manager->config)
+	{
+		cJSON_Delete(manager->config);
+	}
+	
+	free(manager);
+	
+	return 0;
+}
+
+int saveConfigFiles(configManager *manager)
+{
+	int ret = -1;
+	
+	if(manager == NULL)
+	{
+		return ret;
+	}
+	
+	pthread_rwlock_wrlock(&manager->rwlock);
+	
+	ret = saveConfig(manager->config, CONFIG_FILE_PATH_BACK);
+	ret = saveConfig(manager->config, CONFIG_FILE_PATH);
+	ret = remove(CONFIG_FILE_PATH_BACK);
+	
+	pthread_rwlock_unlock(&manager->rwlock);
+	
+	return ret;	
+}
+
+int getItemValue(char *root, char *name, configManager *manager)
+{
+	return getConfigValue(root, name, manager->config);
+}
+
+char *getItemStr(char *root, char *name, configManager *manager)
+{
+	return getConfigStr(root, name, manager->config);
+}
+
+int setItemValue(char *root, char *name, configManager *manager, int value)
+{
+	return setConfigValue(root, name, manager->config, value);
+}
+
+int setItemStr(char *root, char *name, configManager *manager, char *str)
+{
+	return setConfigStr(root, name, manager->config, str);
 }

@@ -3,6 +3,9 @@
 
 #include "stdbool.h"
 #include "sys/file.h"
+#include <unistd.h>   
+#include <fcntl.h>  
+#include "pthread.h"
 #include "cjson/cJSON.h"
 
 #define DEBUG
@@ -40,7 +43,7 @@ And this array must end of with {NULL, NULL, -1, NULL, false, 0}
 #define ROOT_NAME_VIDEO	"video"
 #define ROOT_NAME_AUDIO	"audio"
 
-configItem itemList[] =
+const configItem itemList[] =
 {
 	{"video", "width", TYPE_NUMBER, NULL, 1280},
 	{"video", "height", TYPE_NUMBER, NULL, 720},
@@ -59,22 +62,16 @@ configItem itemList[] =
 
 typedef struct _configManager
 {
-	FILE *fd;
 	cJSON *config;
+	pthread_rwlock_t rwlock;
 }configManager;
 
-extern configManager gConfigManager;
+extern configManager *gConfigManager;
 
-configManager *loadConfigFile(char *filename);
 configManager *initConfigManager(void);
 configManager *getConfigManager(void);
 int delConfigManager(configManager *manager);
-int savConfigFiles(configManager *manager, char *filename);
-
-int getConfigItemValue(char *item);
-int setConfigItemValue(char *item, void *value);
-
-
+int saveConfigFiles(configManager *manager);
 
 
 #endif

@@ -10,7 +10,7 @@ INCLUDE_PATH = \
 LIB_PATH = -L/lib -L/usr/lib -L/usr/local/lib
 CFLAGS = $(INCLUDE_PATH) -DLINUX -std=gnu99
 CPPFLAGS = 
-LDFLAGS = $(LD_PATH) -lcjson -lm
+LDFLAGS = $(LD_PATH) -lcjson -lm -lpthread
 EXECUTABLE = jconfig
 
 $(EXECUTABLE):jconfig.o
